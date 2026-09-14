@@ -2,8 +2,8 @@ import "./globals.css";
 import Shell from "../components/Shell";
 
 export const metadata = {
-  title: "Cell Platform Control Plane",
-  description: "Internal tenant, cell, and release console",
+  title: "Cell — Control Plane",
+  description: "Multi-tenant cell platform console",
 };
 
 export default function RootLayout({ children }) {
@@ -11,8 +11,9 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
-          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter+Tight:wght@300;400;500;600&display=swap"
           rel="stylesheet"
         />
       </head>

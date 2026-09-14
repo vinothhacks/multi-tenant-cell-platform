@@ -28,8 +28,9 @@ export default function ReleasesPage() {
 
   return (
     <>
-      <h1>Releases</h1>
-      <p className="sub">One artifact, progressive waves. Operations are O(waves), not O(N).</p>
+      <p className="index">04 — Artifact</p>
+      <h1 className="display">Release</h1>
+      <p className="lede">One signed image. Canary, then a wave, then the fleet. Never N deploys.</p>
       <div className="row">
         <button className="btn" onClick={start}>
           Start V8
@@ -45,13 +46,27 @@ export default function ReleasesPage() {
         </button>
       </div>
       {current && (
-        <div className="panel">
-          <p>
-            {current.version} · {current.status} · wave {current.wave} · digest <code>{current.digest}</code>
-          </p>
-          <p>Build ✓ Image · ✓ SBOM · ✓ Scan · ✓ Signed · Error budget {current.error_budget}%</p>
-          <p>
-            Schema {current.schema?.on_release}/{current.schema?.total} tenants on {current.version}
+        <>
+          <div className="kpis">
+            <div className="kpi">
+              <div className="l">Version</div>
+              <div className="v">{current.version}</div>
+            </div>
+            <div className="kpi">
+              <div className="l">Wave</div>
+              <div className="v">{current.wave}</div>
+            </div>
+            <div className="kpi">
+              <div className="l">Status</div>
+              <div className="v">{current.status}</div>
+            </div>
+            <div className="kpi">
+              <div className="l">Budget</div>
+              <div className="v">{current.error_budget}%</div>
+            </div>
+          </div>
+          <p className="sub">
+            Schema {current.schema?.on_release}/{current.schema?.total} · <code>{current.digest}</code>
           </p>
           <table>
             <thead>
@@ -73,7 +88,7 @@ export default function ReleasesPage() {
               ))}
             </tbody>
           </table>
-        </div>
+        </>
       )}
     </>
   );

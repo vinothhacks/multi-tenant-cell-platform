@@ -44,8 +44,9 @@ export default function Operations() {
 
   return (
     <>
-      <h1>Operations</h1>
-      <p className="sub">Isolation verification, fleet health, chaos, and illustrative economics.</p>
+      <p className="index">05 — Proof</p>
+      <h1 className="display">Operations</h1>
+      <p className="lede">Isolation, chaos, and a labelled cost model. Break one tenant. Watch the rest hold.</p>
       <div className="row">
         <button className="btn" onClick={seed}>
           Seed 20 tenants
@@ -59,43 +60,45 @@ export default function Operations() {
       </div>
       {run && (
         <div className="panel">
-          <h3>Isolation verification {run.run_id?.slice(0, 8)}</h3>
-          {Object.entries(run.results || {}).map(([k, v]) => (
-            <div key={k} className={v === "PASS" ? "ok" : ""}>
-              {k} {String(v)}
-            </div>
-          ))}
+          <p className="index">Isolation {run.run_id?.slice(0, 8)}</p>
+          <div className="invariants">
+            {Object.entries(run.results || {}).map(([k, v]) => (
+              <div key={k} className={v === "PASS" ? "ok" : ""}>
+                <span>{k}</span>
+                <span>{String(v)}</span>
+              </div>
+            ))}
+          </div>
           {run.probe && (
-            <p>
-              Attempt {run.probe.attempt} → {run.probe.blocked ? "BLOCKED" : "ALLOWED"} ({run.probe.reason})
+            <p className="sub">
+              {run.probe.attempt} → {run.probe.blocked ? "blocked" : "allowed"} · {run.probe.reason}
             </p>
           )}
         </div>
       )}
       {chaos && (
-        <div className="panel">
-          Degraded {chaos.degraded}. Others healthy: {String(chaos.others_healthy)} ({chaos.others} tenants).
-        </div>
+        <p className="banner">
+          Degraded {chaos.degraded}. Others healthy: {String(chaos.others_healthy)} ({chaos.others}).
+        </p>
       )}
       {obs && (
-        <div className="panel">
-          <h3>Fleet health</h3>
-          <p>
-            Availability {obs.api_availability}% · p99 {obs.p99_latency_ms}ms · queue p95 {obs.queue_start_p95_s}s
-          </p>
-          {obs.cells.map((c) => (
-            <div key={c.cell_id}>
-              {c.cell_id}
-              <div className="bar">
-                <span style={{ width: `${c.utilization}%` }} />
-              </div>
-            </div>
-          ))}
+        <div className="kpis">
+          <div className="kpi">
+            <div className="l">Availability</div>
+            <div className="v">{obs.api_availability}%</div>
+          </div>
+          <div className="kpi">
+            <div className="l">p99</div>
+            <div className="v">{obs.p99_latency_ms}</div>
+          </div>
+          <div className="kpi">
+            <div className="l">Queue p95</div>
+            <div className="v">{obs.queue_start_p95_s}s</div>
+          </div>
         </div>
       )}
       {econ && (
-        <div className="panel">
-          <h3>Economics</h3>
+        <>
           <p className="sim">{econ.label}</p>
           <table>
             <thead>
@@ -115,7 +118,7 @@ export default function Operations() {
               ))}
             </tbody>
           </table>
-        </div>
+        </>
       )}
     </>
   );

@@ -12,9 +12,15 @@ next narration
 
 ```bash
 # terminals: control plane :8000 and frontend :3000
-python scripts/demo-video/generate_audio.py   # needs OPENROUTER_API_KEY in env, not git
-node scripts/demo-video/record_scenes.js
-python scripts/demo-video/mux.py
+cd scripts/demo-video
+npm install
+npx playwright install chromium
+pip install edge-tts
+python generate_audio.py          # Edge neural voice, or OPENROUTER_API_KEY if set
+node record_scenes.js             # silent Playwright clips
+python mux.py                     # narration still, then silent action clips
+python mux_stills.py              # Playwright MCP stills + neural voice (no overlap)
+node print_guide.js               # docs/learn/cell-platform-end-to-end.pdf
 ```
 
-Do not commit `audio/` or `output/`. Host the mp4 as a GitHub Release asset.
+Voice and motion never overlap. Do not commit `audio/` or `output/`. Host the mp4 as a GitHub Release asset. Do not commit API keys.

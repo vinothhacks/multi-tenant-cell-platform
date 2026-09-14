@@ -43,16 +43,16 @@ export default function MoveTenant() {
     setResult(r);
   }
 
-  if (!tenant) return <p>Loading…</p>;
+  if (!tenant) return <p className="lede">Preparing cutover…</p>;
 
   return (
     <>
-      <h1>Move tenant</h1>
-      <p className="sub">
-        {tenant.name} · from {tenant.cell_id}. Mechanism: validated dump/restore + cutover commit (not logical
-        replication on this host).
+      <p className="index">From {tenant.cell_id}</p>
+      <h1 className="display">Move</h1>
+      <p className="lede">
+        {tenant.name}. Validated dump/restore, then a registry commit. Not logical replication on this host.
       </p>
-      <div className="panel" style={{ display: "grid", gap: 12, maxWidth: 480 }}>
+      <div className="form">
         <label>
           Target cell
           <select value={target} onChange={(e) => setTarget(e.target.value)}>
@@ -67,22 +67,24 @@ export default function MoveTenant() {
           Reason
           <input value={reason} onChange={(e) => setReason(e.target.value)} />
         </label>
-        <button className="btn" onClick={start}>
-          Start move
-        </button>
+        <div className="row">
+          <button className="btn" onClick={start}>
+            Start move
+          </button>
+        </div>
       </div>
       {result && (
         <div className="panel">
           <div className="steps">
             {GATES.map((g) => (
               <div key={g} className={result.move_gates?.[g] ? "ok" : ""}>
-                {g} {result.move_gates?.[g] ? "✓" : ""}
+                {g.replaceAll("_", " ")} {result.move_gates?.[g] ? "—" : ""}
               </div>
             ))}
           </div>
-          <p>{result.move_committed ? "MOVE COMPLETE" : "SOURCE REMAINS AUTHORITATIVE"}</p>
+          <p className="lede">{result.move_committed ? "Cutover complete." : "Source remains authoritative."}</p>
           <button className="btn" onClick={() => router.push(`/tenants/${id}`)}>
-            Back to tenant
+            Back →
           </button>
         </div>
       )}

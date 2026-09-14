@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Cell Platform — End-to-End Learning Guide</title>
+  <style>
+    :root {
+      --ink: #222;
+      --mute: #5a5a5a;
+      --line: #d8d8d8;
+      --paper: #f8f8f8;
+      --navy: #172b76;
+      --ok: #1b5c3a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+      color: var(--ink);
+      background: #fff;
+      font-size: 11.5pt;
+      line-height: 1.45;
+    }
+    @page { size: A4; margin: 16mm 16mm 18mm; }
+    .cover {
+      page-break-after: always;
+      min-height: 240mm;
+      padding: 28mm 8mm 0;
+    }
+    .cover h1 {
+      font-size: 34pt;
+      font-weight: 600;
+      letter-spacing: -0.04em;
+      line-height: 1.05;
+      margin: 0 0 12pt;
+    }
+    .kicker {
+      font-size: 9pt;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--mute);
+      margin-bottom: 18pt;
+    }
+    .lede { font-size: 13pt; color: var(--mute); max-width: 36em; }
+    h2 {
+      font-size: 16pt;
+      letter-spacing: -0.03em;
+      border-bottom: 1px solid var(--ink);
+      padding-bottom: 6pt;
+      margin: 22pt 0 10pt;
+      page-break-after: avoid;
+    }
+    h3 { font-size: 12pt; margin: 14pt 0 6pt; color: var(--navy); page-break-after: avoid; }
+    p { margin: 0 0 8pt; }
+    ul, ol { margin: 0 0 10pt 18pt; }
+    li { margin: 0 0 3pt; }
+    table { width: 100%; border-collapse: collapse; margin: 0 0 12pt; font-size: 10pt; }
+    th, td { text-align: left; padding: 6pt 8pt 6pt 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { font-size: 8pt; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mute); }
+    code, .mono { font-family: Consolas, "Courier New", monospace; font-size: 9.5pt; }
+    .box {
+      border: 1px solid var(--line);
+      padding: 10pt 12pt;
+      margin: 0 0 12pt;
+      background: var(--paper);
+    }
+    .diag {
+      width: 100%;
+      margin: 8pt 0 14pt;
+      page-break-inside: avoid;
+    }
+    .foot {
+      font-size: 8.5pt;
+      color: var(--mute);
+      margin-top: 24pt;
+    }
+    .small { font-size: 9.5pt; color: var(--mute); }
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14pt; page-break-inside: avoid; }
+    .toc a { color: inherit; text-decoration: none; }
+    .toc td:last-child { text-align: right; color: var(--mute); }
+  </style>
+</head>
+<body>
+
+<section class="cover">
+  <p class="kicker">Internal architecture control plane · not a customer product</p>
+  <h1>Multi-tenant cell platform<br/>End-to-end learning guide</h1>
+  <p class="lede">How the live website works, how requests travel from the browser through Vercel and Render, and how placement, isolation, moves, and wave releases keep operations at O(waves) instead of O(N).</p>
+  <div class="box" style="margin-top:28pt;">
+    <p><strong>Console (Vercel):</strong> linked GitHub repo <span class="mono">vinothhacks/multi-tenant-cell-platform</span>, app in <span class="mono">frontend/</span></p>
+    <p><strong>API (Render):</strong> <span class="mono">https://cell-control-plane.onrender.com</span></p>
+    <p><strong>Source:</strong> <span class="mono">https://github.com/vinothhacks/multi-tenant-cell-platform</span></p>
+    <p><strong>Local:</strong> console <span class="mono">http://localhost:3000</span> → API <span class="mono">http://localhost:8000</span></p>
+  </div>
+  <p class="foot">Vinoth N · Cell Platform showcase · Architecture diagrams match the running code, not a future redesign.</p>
+</section>
+
+<h2>Contents</h2>
+<table class="toc">
+  <tr><td>1. The job: isolation without O(N) operations</td><td>Diagram A</td></tr>
+  <tr><td>2. How the live website is hosted</td><td>Diagram B</td></tr>
+  <tr><td>3. What happens when you click in the console</td><td>Diagram C</td></tr>
+  <tr><td>4. Repository map and the six screens</td><td>Diagram D</td></tr>
+  <tr><td>5. Placement policy (C / D / E are outputs)</td><td>Diagram E</td></tr>
+  <tr><td>6. Tenant lifecycle and the controller</td><td>Diagram F</td></tr>
+  <tr><td>7. Data-plane isolation</td><td>Diagram G</td></tr>
+  <tr><td>8. Tenant move (dump / restore + registry commit)</td><td>Diagram H</td></tr>
+  <tr><td>9. Wave releases</td><td>Diagram I</td></tr>
+  <tr><td>10. Chaos and I1–I10</td><td></td></tr>
+  <tr><td>11. Run, test, demo video</td><td></td></tr>
+</table>
+
+<h2>1. The job</h2>
+<p>Isolation is a <strong>security property</strong> (tenant A cannot read, write, or starve tenant B). Separate environments are an <strong>operational topology</strong> (N stacks). The silo design bought isolation by paying O(N) operations. This platform keeps per-tenant databases and makes fleet work scale as waves.</p>
+
+<svg class="diag" viewBox="0 0 900 280" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Before O(N) silos versus after control plane and cells">
+  <text x="0" y="18" font-size="13" fill="#5a5a5a">DIAGRAM A — Before vs after</text>
+  <rect x="0" y="36" width="420" height="230" fill="#f8f8f8" stroke="#d8d8d8"/>
+  <text x="16" y="60" font-size="14" font-weight="600">BEFORE · O(N)</text>
+  <g font-size="11" fill="#222">
+    <rect x="20" y="78" width="180" height="36" fill="#fff" stroke="#222"/><text x="32" y="100">Tenant A → own stack</text>
+    <rect x="20" y="124" width="180" height="36" fill="#fff" stroke="#222"/><text x="32" y="146">Tenant B → own stack</text>
+    <rect x="20" y="170" width="180" height="36" fill="#fff" stroke="#222"/><text x="32" y="192">Tenant N → own stack</text>
+    <text x="20" y="240" fill="#8e2e26">N deploys · N configs · N monitors</text>
+  </g>
+  <rect x="480" y="36" width="420" height="230" fill="#f8f8f8" stroke="#172b76"/>
+  <text x="496" y="60" font-size="14" font-weight="600" fill="#172b76">AFTER · O(waves)</text>
+  <rect x="560" y="78" width="260" height="36" fill="#172b76"/><text x="590" y="100" fill="#fff" font-size="12">Control plane (registry)</text>
+  <rect x="500" y="140" width="100" height="70" fill="#fff" stroke="#222"/><text x="516" y="180" font-size="11">CELL-01</text>
+  <rect x="630" y="140" width="100" height="70" fill="#fff" stroke="#222"/><text x="646" y="180" font-size="11">CELL-02</text>
+  <rect x="760" y="140" width="100" height="70" fill="#fff" stroke="#222"/><text x="776" y="180" font-size="11">CELL-03</text>
+  <text x="500" y="240" font-size="11">One artifact · per-tenant DBs · wave deploys</text>
+</svg>
+
+<table>
+  <tr><th>Must be true</th><th>How this repo proves it</th></tr>
+  <tr><td>No cross-tenant data path</td><td><code>GET /v1/isolation/run</code> plus Django connection manager</td></tr>
+  <tr><td>Fleet ops are O(waves)</td><td>One signed release, canary → wave → fleet</td></tr>
+  <tr><td>Onboarding is a registry write</td><td><code>POST /v1/tenants</code> walks requested → active</td></tr>
+  <tr><td>Tenants can move</td><td>Validated dump/restore, then registry commit</td></tr>
+  <tr><td>Faults stay contained</td><td>Chaos: one DB down, others healthy</td></tr>
+</table>
+
+<h2>2. How the live website is hosted</h2>
+<p>Three systems, one GitHub repo. Push to <code>main</code> updates the sources of truth. Render rebuilds the API. Vercel rebuilds the console. Neither stores tenant data on an ephemeral disk as the product of record — the demo registry is in-memory on the control plane (resets on sleep/restart on the free plan).</p>
+
+<svg class="diag" viewBox="0 0 900 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="GitHub Render Vercel hosting topology">
+  <text x="0" y="18" font-size="13" fill="#5a5a5a">DIAGRAM B — GitHub · Render · Vercel</text>
+  <rect x="300" y="36" width="300" height="56" fill="#222"/><text x="350" y="70" fill="#fff" font-size="14">GitHub  main branch</text>
+  <path d="M450 92 L450 120" stroke="#222" stroke-width="1.5"/>
+  <path d="M450 120 L180 120 L180 148" stroke="#222" stroke-width="1.5" fill="none"/>
+  <path d="M450 120 L720 120 L720 148" stroke="#222" stroke-width="1.5" fill="none"/>
+  <rect x="40" y="148" width="280" height="90" fill="#f8f8f8" stroke="#172b76"/>
+  <text x="56" y="172" font-size="13" font-weight="600" fill="#172b76">Render · Linux web service</text>
+  <text x="56" y="196" font-size="11">FastAPI  0.0.0.0:$PORT</text>
+  <text x="56" y="216" font-size="11">cell-control-plane.onrender.com</text>
+  <rect x="580" y="148" width="280" height="90" fill="#f8f8f8" stroke="#172b76"/>
+  <text x="596" y="172" font-size="13" font-weight="600" fill="#172b76">Vercel · Next.js</text>
+  <text x="596" y="196" font-size="11">frontend/  Node build</text>
+  <text x="596" y="216" font-size="11">Browser origin for the console</text>
+  <rect x="310" y="260" width="280" height="48" fill="#fff" stroke="#222"/>
+  <text x="340" y="290" font-size="12">You · browser · HTTPS</text>
+  <path d="M720 238 L450 260" stroke="#222" fill="none"/>
+  <path d="M180 238 L450 260" stroke="#222" fill="none" stroke-dasharray="4 3"/>
+  <text x="0" y="310" font-size="10" fill="#5a5a5a">Solid: UI. Dashed: JSON API from the browser to Render (CORS enabled).</text>
+</svg>
+
+<div class="box">
+  <p><strong>Important Render constraint:</strong> the filesystem is ephemeral. Local SQLite files vanish on restart. The showcase control plane keeps the registry in memory so a free web service can still demonstrate placement, moves, and waves. Production would persist the registry in Postgres and tenant DBs on dedicated storage.</p>
+</div>
+
+<h2>3. What happens when you click in the console</h2>
+<p>The Next.js app never talks to a database. Every screen is a thin client over <code>frontend/lib/api.js</code>. On localhost it uses <code>http://localhost:8000</code>. On Vercel (hostname not localhost) it uses <code>https://cell-control-plane.onrender.com</code> unless <code>NEXT_PUBLIC_API_URL</code> is set.</p>
+
+<svg class="diag" viewBox="0 0 900 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Click path from UI through API to store">
+  <text x="0" y="18" font-size="13" fill="#5a5a5a">DIAGRAM C — Example: Create tenant</text>
+  <rect x="0" y="40" width="160" height="70" fill="#fff" stroke="#222"/><text x="18" y="70" font-size="12">1. Form submit</text><text x="18" y="90" font-size="10">POST /v1/tenants</text>
+  <rect x="185" y="40" width="160" height="70" fill="#fff" stroke="#222"/><text x="200" y="70" font-size="12">2. FastAPI</text><text x="200" y="90" font-size="10">Pydantic SeedIn</text>
+  <rect x="370" y="40" width="160" height="70" fill="#fff" stroke="#222"/><text x="385" y="70" font-size="12">3. place()</text><text x="385" y="90" font-size="10">tier + cell_id</text>
+  <rect x="555" y="40" width="160" height="70" fill="#fff" stroke="#222"/><text x="570" y="70" font-size="12">4. controller</text><text x="570" y="90" font-size="10">idempotent steps</text>
+  <rect x="740" y="40" width="160" height="70" fill="#172b76"/><text x="758" y="70" fill="#fff" font-size="12">5. status=active</text><text x="758" y="90" fill="#fff" font-size="10">JSON back to UI</text>
+  <path d="M160 75 L185 75 M345 75 L370 75 M530 75 L555 75 M715 75 L740 75" stroke="#222"/>
+  <text x="0" y="150" font-size="12" font-weight="600">Controller steps (resume-safe)</text>
+  <g font-size="11">
+    <rect x="0" y="164" width="118" height="40" fill="#f8f8f8" stroke="#222"/><text x="10" y="188">requested</text>
+    <rect x="128" y="164" width="118" height="40" fill="#f8f8f8" stroke="#222"/><text x="138" y="188">provisioning</text>
+    <rect x="256" y="164" width="118" height="40" fill="#f8f8f8" stroke="#222"/><text x="266" y="188">database_ready</text>
+    <rect x="384" y="164" width="118" height="40" fill="#f8f8f8" stroke="#222"/><text x="394" y="188">schema_ready</text>
+    <rect x="512" y="164" width="118" height="40" fill="#f8f8f8" stroke="#222"/><text x="522" y="188">secrets_ready</text>
+    <rect x="640" y="164" width="118" height="40" fill="#f8f8f8" stroke="#222"/><text x="650" y="188">routing_ready</text>
+    <rect x="768" y="164" width="118" height="40" fill="#1b5c3a"/><text x="790" y="188" fill="#fff">active</text>
+  </g>
+  <text x="0" y="240" font-size="12">The UI lists those steps as soon as the JSON returns. Humans do not SSH into a cell to create a database.</text>
+  <text x="0" y="270" font-size="12"><tspan font-weight="600">Other clicks:</tspan> Seed 20 → POST /v1/synthetic/seed · Start move → POST /v1/tenants/{id}/move · Start V8 → POST /v1/releases · Break DB → POST /v1/chaos/db-down</text>
+</svg>
+
+<h2>4. Repository map and the six screens</h2>
+<div class="two">
+  <div>
+    <h3>Repo</h3>
+    <table>
+      <tr><th>Path</th><th>Role</th></tr>
+      <tr><td><code>control-plane/</code></td><td>FastAPI registry, placement, controller, moves, releases, isolation, chaos</td></tr>
+      <tr><td><code>data-plane/</code></td><td>Django <code>cellapp</code>: tenant middleware, sqlite-per-tenant manager, HMAC Celery envelope</td></tr>
+      <tr><td><code>frontend/</code></td><td>Next.js 14 JavaScript console</td></tr>
+      <tr><td><code>tests/</code></td><td>Phase-gated pytest</td></tr>
+      <tr><td><code>render.yaml</code></td><td>Blueprint: control-plane + data-plane on 0.0.0.0:$PORT</td></tr>
+      <tr><td><code>scripts/demo-video/</code></td><td>Playwright clips + TTS + ffmpeg mux</td></tr>
+    </table>
+  </div>
+  <div>
+    <h3>Console routes</h3>
+    <table>
+      <tr><th>#</th><th>Route</th><th>Proves</th></tr>
+      <tr><td>01</td><td><code>/</code> Fleet</td><td>Registry is source of truth</td></tr>
+      <tr><td>02</td><td><code>/cells</code></td><td>Cell is the blast radius</td></tr>
+      <tr><td>03</td><td><code>/tenants/new</code></td><td>Controller to active</td></tr>
+      <tr><td>04</td><td><code>/releases</code></td><td>One artifact, waves</td></tr>
+      <tr><td>05</td><td><code>/operations</code></td><td>I1–I10, chaos, cost model</td></tr>
+      <tr><td>—</td><td><code>/tenants/[id]/move</code></td><td>Dump/restore cutover</td></tr>
+    </table>
+  </div>
+</div>
+
+<svg class="diag" viewBox="0 0 900 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Six console screens around the control plane">
+  <text x="0" y="18" font-size="13" fill="#5a5a5a">DIAGRAM D — Console is a control-plane skin</text>
+  <rect x="320" y="50" width="260" height="80" fill="#172b76"/><text x="360" y="96" fill="#fff" font-size="14">Control plane API</text>
+  <rect x="20" y="40" width="120" height="44" fill="#fff" stroke="#222"/><text x="50" y="66" font-size="11">Fleet</text>
+  <rect x="20" y="100" width="120" height="44" fill="#fff" stroke="#222"/><text x="50" y="126" font-size="11">Cells</text>
+  <rect x="160" y="40" width="120" height="44" fill="#fff" stroke="#222"/><text x="178" y="66" font-size="11">Provision</text>
+  <rect x="620" y="40" width="120" height="44" fill="#fff" stroke="#222"/><text x="640" y="66" font-size="11">Releases</text>
+  <rect x="760" y="40" width="120" height="44" fill="#fff" stroke="#222"/><text x="772" y="66" font-size="11">Operations</text>
+  <rect x="620" y="100" width="260" height="44" fill="#fff" stroke="#222"/><text x="680" y="126" font-size="11">Move / tenant detail</text>
+</svg>
+
+<h2>5. Placement policy</h2>
+<p>The policy emits a <strong>tier</strong> (pooled / dedicated / sovereign). It does not “select CELL-01” as a slogan. Pooled capacity is <strong>8</strong>. Overflow creates the next pooled cell (CELL-03 in the demo after CELL-01 and CELL-02 fill).</p>
+
+<svg class="diag" viewBox="0 0 900 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Placement decision tree">
+  <text x="0" y="18" font-size="13" fill="#5a5a5a">DIAGRAM E — place(isolation, size, region)</text>
+  <rect x="0" y="40" width="200" height="50" fill="#fff" stroke="#222"/><text x="24" y="70" font-size="12">New tenant request</text>
+  <rect x="250" y="40" width="200" height="50" fill="#fff" stroke="#222"/><text x="280" y="70" font-size="12">isolation == L3?</text>
+  <rect x="520" y="20" width="200" height="44" fill="#172b76"/><text x="548" y="46" fill="#fff" font-size="12">SOVEREIGN cell</text>
+  <rect x="250" y="110" width="200" height="50" fill="#fff" stroke="#222"/><text x="262" y="140" font-size="12">L2 or size L/XL?</text>
+  <rect x="520" y="110" width="200" height="50" fill="#fff" stroke="#222"/><text x="548" y="140" font-size="12">DEDICATED cell</text>
+  <rect x="250" y="180" width="200" height="50" fill="#fff" stroke="#222"/><text x="275" y="210" font-size="12">else pooled + headroom</text>
+  <rect x="520" y="180" width="360" height="50" fill="#1b5c3a"/><text x="540" y="210" fill="#fff" font-size="12">POOLED · fullest headroom, else new cell</text>
+</svg>
+
+<h2>6. Tenant lifecycle</h2>
+<p>The controller is idempotent. If it crashes after <code>database_ready</code>, a retry continues from recorded <code>completed_steps</code>. Suspend and resume are registry transitions. Delete is a tombstone, not a silent drop.</p>
+
+<svg class="diag" viewBox="0 0 900 140" xmlns="http://www.w3.org/2000/svg">
+  <text x="0" y="18" font-size="13" fill="#5a5a5a">DIAGRAM F — Runtime states after active</text>
+  <rect x="20" y="50" width="140" height="50" fill="#1b5c3a"/><text x="60" y="80" fill="#fff">active</text>
+  <rect x="220" y="50" width="140" height="50" fill="#fff" stroke="#8a5a12"/><text x="250" y="80">suspended</text>
+  <rect x="420" y="50" width="140" height="50" fill="#fff" stroke="#8a5a12"/><text x="448" y="80">migrating</text>
+  <rect x="620" y="50" width="140" height="50" fill="#fff" stroke="#8e2e26"/><text x="655" y="80">degraded</text>
+  <text x="20" y="128" font-size="11">Chaos sets db_unavailable → degraded. Other tenants stay active.</text>
+</svg>
+
+<h2>7. Data-plane isolation</h2>
+<p>Django <code>cellapp</code> resolves the tenant from the request, then opens that tenant’s database only. Celery tasks carry an HMAC envelope so a worker cannot run as the wrong tenant. This is L1 isolation: own database, not own Kubernetes cluster.</p>
+
+<svg class="diag" viewBox="0 0 900 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Request never shares another tenant database">
+  <text x="0" y="18" font-size="13" fill="#5a5a5a">DIAGRAM G — One request, one database</text>
+  <rect x="0" y="50" width="180" height="60" fill="#fff" stroke="#222"/><text x="30" y="85" font-size="12">Request + tenant id</text>
+  <rect x="230" y="50" width="200" height="60" fill="#fff" stroke="#222"/><text x="250" y="85" font-size="12">Tenant middleware</text>
+  <rect x="480" y="50" width="200" height="60" fill="#fff" stroke="#222"/><text x="500" y="85" font-size="12">Connection manager</text>
+  <rect x="40" y="140" width="160" height="50" fill="#f8f8f8" stroke="#222"/><text x="70" y="170" font-size="11">db_acme</text>
+  <rect x="240" y="140" width="160" height="50" fill="#f8f8f8" stroke="#222"/><text x="262" y="170" font-size="11">db_northwind</text>
+  <rect x="440" y="140" width="160" height="50" fill="#f8f8f8" stroke="#222"/><text x="470" y="170" font-size="11">db_syn_01</text>
+  <text x="640" y="170" font-size="11">Cross-DB probe → blocked</text>
+</svg>
+
+<h2>8. Tenant move</h2>
+<p>Managed Render Postgres does not give you logical replication between arbitrary tenant databases in this showcase. The move path is <strong>validated dump/restore</strong>, then a <strong>registry commit</strong> (epoch++, routing switch). Abort leaves the source authoritative.</p>
+
+<svg class="diag" viewBox="0 0 900 160" xmlns="http://www.w3.org/2000/svg">
+  <text x="0" y="18" font-size="13" fill="#5a5a5a">DIAGRAM H — Cutover gates</text>
+  <g font-size="10">
+    <rect x="0" y="40" width="80" height="54" fill="#f8f8f8" stroke="#222"/><text x="8" y="70">copy</text>
+    <rect x="90" y="40" width="80" height="54" fill="#f8f8f8" stroke="#222"/><text x="98" y="70">replicate</text>
+    <rect x="180" y="40" width="80" height="54" fill="#f8f8f8" stroke="#222"/><text x="188" y="70">catch up</text>
+    <rect x="270" y="40" width="80" height="54" fill="#f8f8f8" stroke="#222"/><text x="278" y="70">lag 0</text>
+    <rect x="360" y="40" width="90" height="54" fill="#f8f8f8" stroke="#222"/><text x="368" y="70">tx = 0</text>
+    <rect x="460" y="40" width="90" height="54" fill="#f8f8f8" stroke="#222"/><text x="468" y="70">validate</text>
+    <rect x="560" y="40" width="90" height="54" fill="#f8f8f8" stroke="#222"/><text x="568" y="70">epoch++</text>
+    <rect x="660" y="40" width="110" height="54" fill="#1b5c3a"/><text x="672" y="70" fill="#fff">route switch</text>
+  </g>
+  <text x="0" y="130" font-size="11">The UI button is “Start move”. The page prints every gate. “Cutover complete” means the registry commit landed.</text>
+</svg>
+
+<h2>9. Wave releases</h2>
+<p>There is one signed image (digest in the UI). Never N per-tenant deploys. Canary a cell, bake, then the next wave. A bad tenant becomes <code>degraded</code> and is isolated from the wave, not used as a reason to roll the whole fleet by hand.</p>
+
+<svg class="diag" viewBox="0 0 900 140" xmlns="http://www.w3.org/2000/svg">
+  <text x="0" y="18" font-size="13" fill="#5a5a5a">DIAGRAM I — Start V8 then Continue wave</text>
+  <rect x="0" y="40" width="200" height="60" fill="#172b76"/><text x="50" y="75" fill="#fff">canary CELL-01</text>
+  <rect x="250" y="40" width="200" height="60" fill="#fff" stroke="#222"/><text x="295" y="75">wave CELL-02</text>
+  <rect x="500" y="40" width="200" height="60" fill="#fff" stroke="#222"/><text x="545" y="75">fleet remainder</text>
+  <rect x="750" y="40" width="140" height="60" fill="#1b5c3a"/><text x="785" y="75" fill="#fff">V8</text>
+</svg>
+
+<h2>10. Chaos and I1–I10</h2>
+<p>Operations → <strong>Run I1–I10</strong> posts two live tenant ids and prints PASS/FAIL. <strong>Break one tenant DB</strong> marks one tenant degraded and returns <code>others_healthy: true</code>. That is the blast-radius demo: one partition fails, the cell and the fleet do not.</p>
+<table>
+  <tr><th>Id</th><th>Intent (short)</th></tr>
+  <tr><td>I1–I2</td><td>No request or connection uses another tenant’s database</td></tr>
+  <tr><td>I3–I5</td><td>Credentials, cache, and queue payloads are tenant-scoped</td></tr>
+  <tr><td>I6–I8</td><td>Backups, restores, and deletes cannot leak across tenants</td></tr>
+  <tr><td>I9–I10</td><td>Noisy neighbour and fault containment stay inside a cell / tenant</td></tr>
+</table>
+
+<h2>11. Run, test, demo video</h2>
+<p><strong>Local API</strong></p>
+<div class="box mono">python -m pip install -r requirements.txt
+python -m pytest -q
+python -m uvicorn app.main:app --app-dir control-plane --host 0.0.0.0 --port 8000</div>
+<p><strong>Local console</strong></p>
+<div class="box mono">cd frontend
+npm install
+npm run dev</div>
+<p><strong>Explaining video</strong> (voice first, then silent Playwright motion — they never overlap)</p>
+<div class="box mono">cd scripts/demo-video
+npm install
+npx playwright install chromium
+python generate_audio.py
+node record_scenes.js
+python mux.py
+# output/cell-platform-demo.mp4  — not committed; attach as a GitHub Release</div>
+<p class="small">Playwright MCP is optional. This repo records with the Playwright library so the demo is reproducible in CI-like local runs. Do not commit <code>OPENROUTER_API_KEY</code>. Neural TTS uses Edge voices when that key is absent.</p>
+<p>Deeper architecture, ADRs, threat model, and phase gates: <code>docs/architecture.md</code>, <code>docs/decisions.md</code>, <code>docs/threat-model.md</code>, <code>docs/phases/</code>.</p>
+</body>
+</html>

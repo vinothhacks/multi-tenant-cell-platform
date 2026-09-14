@@ -73,10 +73,23 @@ scripts/demo-video/
 
 Copy `.env.example` to `.env`. Never commit `OPENROUTER_API_KEY`. Video generation is local-only (Phase 10).
 
-## Docs
+## Hosted demo
 
-- [Architecture](docs/architecture.md)
-- [Decisions](docs/decisions.md)
-- [Threat model](docs/threat-model.md)
-- [Runbooks](docs/runbooks.md)
-- [Phase reports](docs/phases/)
+| Layer | Where |
+|---|---|
+| Source | https://github.com/vinothhacks/multi-tenant-cell-platform |
+| Control plane API | https://cell-control-plane.onrender.com |
+| Console | Vercel project `cell-platform-console` (root `frontend/`) |
+
+The browser loads the Next.js console from Vercel. The console calls the Render API. Free Render services sleep after idle; the first request may wait on a cold start. The in-memory registry resets on restart.
+
+## Learn the whole build
+
+- **PDF (diagrams of the running website):** [docs/learn/cell-platform-end-to-end.pdf](docs/learn/cell-platform-end-to-end.pdf)
+- HTML source for that PDF: [docs/learn/guide.html](docs/learn/guide.html)
+- Full architecture: [docs/architecture.md](docs/architecture.md)
+- [Decisions](docs/decisions.md) · [Threat model](docs/threat-model.md) · [Runbooks](docs/runbooks.md) · [Phase reports](docs/phases/)
+
+## Explaining video
+
+Voice then silent Playwright motion — they never overlap. See [scripts/demo-video/README.md](scripts/demo-video/README.md). The mp4 is a GitHub Release asset, not a git blob.

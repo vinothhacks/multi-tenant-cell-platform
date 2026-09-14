@@ -1,4 +1,4 @@
-"""Mux silent action clips with preceding narration. No overlapping tracks."""
+"""Build the explaining video from Playwright stills + neural voice. Voice never overlaps motion (there is no motion track)."""
 
 from __future__ import annotations
 
@@ -8,9 +8,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 AUDIO = ROOT / "audio"
-CLIPS = ROOT / "output" / "clips"
+STILLS = ROOT / "output" / "stills"
 OUT = ROOT / "output" / "cell-platform-demo.mp4"
-OUT.parent.mkdir(exist_ok=True)
+WORK = ROOT / "output" / "parts"
+WORK.mkdir(parents=True, exist_ok=True)
 
 SCENES = [
     "scene-01-problem",
@@ -33,23 +34,18 @@ def audio_path(slug: str) -> Path:
         p = AUDIO / f"{slug}{ext}"
         if p.exists():
             return p
-    return AUDIO / f"{slug}.mp3"
+    raise FileNotFoundError(slug)
 
 
 def main() -> None:
     parts = []
-    work = ROOT / "output" / "parts"
-    work.mkdir(parents=True, exist_ok=True)
     for i, slug in enumerate(SCENES):
+        png = STILLS / f"{slug}.png"
         wav = audio_path(slug)
-        clip = CLIPS / f"{slug}.webm"
-        if not wav.exists() or not clip.exists():
-            print(f"missing {wav.name} or {clip.name}", file=sys.stderr)
+        if not png.exists():
+            print(f"missing {png}", file=sys.stderr)
             sys.exit(2)
-        still = work / f"{slug}-still.png"
-        narr = work / f"{i:02d}-narr.mp4"
-        action = work / f"{i:02d}-action.mp4"
-        run(["ffmpeg", "-y", "-ss", "0", "-i", str(clip), "-frames:v", "1", str(still)])
+        narr = WORK / f"{i:02d}-narr.mp4"
         run(
             [
                 "ffmpeg",
@@ -57,7 +53,7 @@ def main() -> None:
                 "-loop",
                 "1",
                 "-i",
-                str(still),
+                str(png),
                 "-i",
                 str(wav),
                 "-c:v",
@@ -68,13 +64,14 @@ def main() -> None:
                 "aac",
                 "-pix_fmt",
                 "yuv420p",
+                "-vf",
+                "scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2",
                 "-shortest",
                 str(narr),
             ]
         )
-        run(["ffmpeg", "-y", "-i", str(clip), "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(action)])
-        parts.extend([narr, action])
-    lst = work / "concat.txt"
+        parts.append(narr)
+    lst = WORK / "concat.txt"
     lst.write_text("".join(f"file '{p.as_posix()}'\n" for p in parts), encoding="utf-8")
     run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(OUT)])
     print(OUT)

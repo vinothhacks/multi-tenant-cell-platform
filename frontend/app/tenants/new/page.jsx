@@ -36,15 +36,16 @@ export default function CreateTenant() {
 
   return (
     <>
-      <h1>Create tenant</h1>
-      <p className="sub">Controller reconciles requested → active. Each step is idempotent.</p>
-      <form className="panel" onSubmit={submit} style={{ display: "grid", gap: 12, maxWidth: 480 }}>
+      <p className="index">03 — Reconcile</p>
+      <h1 className="display">New tenant</h1>
+      <p className="lede">The controller walks requested to active. Every step is idempotent and resumable.</p>
+      <form className="form" onSubmit={submit}>
         <label>
-          Company name
+          Company
           <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         </label>
         <label>
-          Isolation class
+          Isolation
           <select value={form.isolation} onChange={(e) => setForm({ ...form, isolation: e.target.value })}>
             <option>L1</option>
             <option>L2</option>
@@ -56,7 +57,7 @@ export default function CreateTenant() {
           <input value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} />
         </label>
         <label>
-          Size class
+          Size
           <select value={form.size_class} onChange={(e) => setForm({ ...form, size_class: e.target.value })}>
             <option>S</option>
             <option>M</option>
@@ -68,25 +69,26 @@ export default function CreateTenant() {
           Contract
           <input value={form.contract} onChange={(e) => setForm({ ...form, contract: e.target.value })} />
         </label>
-        <button className="btn" disabled={busy} type="submit">
-          {busy ? "Creating…" : "Create"}
-        </button>
+        <div className="row">
+          <button className="btn" disabled={busy} type="submit">
+            {busy ? "Creating…" : "Create"}
+          </button>
+        </div>
       </form>
       {result && (
         <div className="panel">
           <div className="steps">
             {STEPS.map((s) => (
               <div key={s} className={result.completed_steps?.includes(s) || result.status === "active" ? "ok" : ""}>
-                {s.toUpperCase()} {result.status === "active" || result.completed_steps?.includes(s) ? "✓" : ""}
+                {s} {result.status === "active" || result.completed_steps?.includes(s) ? "—" : ""}
               </div>
             ))}
           </div>
-          <p>
-            Provisioning time: {result.provisioning_seconds}s · Cell: {result.cell_id} · Database:{" "}
-            <code>{result.database_name}</code> · Release: {result.schema_version}
+          <p className="sub">
+            {result.provisioning_seconds}s · {result.cell_id} · {result.database_name} · {result.schema_version}
           </p>
           <button className="btn" onClick={() => router.push(`/tenants/${result.tenant_id}`)}>
-            Open tenant
+            Open tenant →
           </button>
         </div>
       )}

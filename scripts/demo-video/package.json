@@ -1,0 +1,12 @@
+{
+  "name": "cell-platform-demo-video",
+  "private": true,
+  "description": "Silent Playwright scene recorder for the control-plane walkthrough",
+  "scripts": {
+    "record": "node record_scenes.js",
+    "pdf": "node print_guide.js"
+  },
+  "dependencies": {
+    "playwright": "1.49.1"
+  }
+}

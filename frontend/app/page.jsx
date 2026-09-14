@@ -17,28 +17,29 @@ export default function FleetPage() {
   if (err) {
     return (
       <>
-        <h1>Tenant fleet</h1>
-        <p className="banner">Backend unreachable ({err}). If this is Render free tier, the service may be waking up.</p>
+        <p className="index">01 — Registry</p>
+        <h1 className="display">Fleet</h1>
+        <p className="banner">Backend unreachable. {err}</p>
       </>
     );
   }
-  if (!data) return <p>Loading fleet…</p>;
+  if (!data) return <p className="lede">Composing the registry…</p>;
 
   return (
     <>
-      <h1>Tenant fleet</h1>
-      <p className="sub">Registry is the source of truth for placement, schema, epoch, and lifecycle.</p>
+      <p className="index">01 — Registry</p>
+      <h1 className="display">Fleet</h1>
+      <p className="lede">
+        Tenants are partitions. The registry is source of truth. Operations scale as waves, not as N.
+      </p>
       <div className="kpis">
         {[
           ["Total", data.total_tenants],
           ["Pooled", data.pooled],
           ["Dedicated", data.dedicated],
-          ["Sovereign", data.sovereign],
           ["Cells", data.cells],
           ["Healthy", data.healthy],
-          ["Onboarding", `${data.onboarding_seconds_p50}s`],
           ["Release", data.fleet_release],
-          ["Skew", data.version_skew],
         ].map(([l, v]) => (
           <div className="kpi" key={String(l)}>
             <div className="l">{l}</div>
