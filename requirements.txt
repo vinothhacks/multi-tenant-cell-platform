@@ -1,0 +1,2 @@
+-r control-plane/requirements.txt
+-r data-plane/requirements.txt

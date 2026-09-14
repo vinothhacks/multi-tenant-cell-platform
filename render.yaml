@@ -1,0 +1,33 @@
+# Blueprint for the public demo. Bind 0.0.0.0:$PORT.
+# Tenant databases in the demo are sqlite-per-tenant files created by the
+# control plane / data plane. Managed Postgres here is reserved for a future
+# registry adapter; the local test suite does not require it.
+
+services:
+  - type: web
+    name: cell-control-plane
+    runtime: python
+    plan: starter
+    region: oregon
+    buildCommand: pip install -r control-plane/requirements.txt
+    startCommand: python -m uvicorn app.main:app --app-dir control-plane --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: CORS_ORIGINS
+        value: "*"
+
+  - type: web
+    name: cell-data-plane
+    runtime: python
+    plan: starter
+    region: oregon
+    buildCommand: pip install -r data-plane/requirements.txt
+    startCommand: cd data-plane && python -m gunicorn cellapp.wsgi:application --bind 0.0.0.0:$PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: DJANGO_SECRET_KEY
+        generateValue: true

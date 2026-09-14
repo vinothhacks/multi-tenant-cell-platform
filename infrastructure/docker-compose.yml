@@ -1,0 +1,28 @@
+services:
+  control-plane:
+    image: python:3.12-slim
+    working_dir: /app
+    volumes:
+      - ../:/app
+    command: >
+      sh -c "pip install -q -r control-plane/requirements.txt &&
+      python -m uvicorn app.main:app --app-dir control-plane --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000:8000"
+    environment:
+      PORT: "8000"
+      CORS_ORIGINS: "http://localhost:3000"
+
+  data-plane:
+    image: python:3.12-slim
+    working_dir: /app/data-plane
+    volumes:
+      - ../:/app
+    command: >
+      sh -c "pip install -q -r requirements.txt &&
+      python -m gunicorn cellapp.wsgi:application --bind 0.0.0.0:8001"
+    ports:
+      - "8001:8001"
+    environment:
+      DJANGO_SECRET_KEY: "dev-only"
+      DATA_DIR: "/app/data/tenant-dbs"
